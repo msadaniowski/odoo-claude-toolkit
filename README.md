@@ -17,7 +17,7 @@ Instalable como **plugin de Claude Code**, o usando cada componente por separado
 Desde Claude Code:
 
 ```
-/plugin install msadaniowski/odoo-migration-recipe
+/plugin install msadaniowski/odoo-claude-toolkit
 ```
 
 O cloná el repo y apuntá tu `settings.json` al path local.
@@ -86,7 +86,7 @@ Ver [`docs/workflow.md`](docs/workflow.md) para el flujo completo con diagramas.
 ## Qué hay en la caja
 
 ```
-odoo-migration-recipe/
+odoo-claude-toolkit/
 ├── README.md                       ← estás acá
 ├── template/                       ← copiá esto a tu proyecto
 │   ├── MIGRATION.md                ← fuente única de verdad de esta migración
