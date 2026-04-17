@@ -156,7 +156,16 @@ Para cada archivo XML en `views/`, `data/`, `demo/`, `report/`:
 
 ### Fase 5 — Informe
 
-Produce un informe en Markdown con esta estructura:
+**Persistencia en disco (obligatorio)**: además de mostrar el informe en chat, guardá una copia en:
+
+- `<modulo>/.audit/AUDIT_REPORT.md` — siempre la última auditoría (se sobreescribe).
+- `<modulo>/.audit/history/AUDIT_REPORT_<YYYY-MM-DD>.md` — histórico inmutable.
+
+Esto es **crítico** para que el skill `audit-odoo-fix` pueda leer el informe en un chat posterior y generar el plan de remediación.
+
+Si la carpeta `.audit/` no existe, creala. Si el módulo tiene `.gitignore` y el usuario no quiere comitear las auditorías, sugerirle agregar `.audit/` al `.gitignore`. Dejar la decisión al usuario.
+
+Produce el informe en Markdown con esta estructura:
 
 ```markdown
 # Auditoría: <nombre_modulo> v<version>
