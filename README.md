@@ -1,81 +1,81 @@
-# Odoo Module Migration Recipe
+# Receta de Migración de Módulos Odoo
 
-A **spec-driven, phase-based recipe** for migrating Odoo modules between versions, designed to work with AI coding assistants (Claude Code, Codex, Cursor, etc.).
+Una **receta guiada por especificación, dividida en fases** para migrar módulos de Odoo entre versiones, diseñada para trabajar con asistentes de IA (Claude Code, Codex, Cursor, etc.).
 
-Inspired by the [GSD (Get Shit Done)](https://github.com/gsd-build/get-shit-done) workflow, adapted to the realities of Odoo migration: `OpenUpgrade`, OCA guidelines, mechanical transformations, and the human judgement calls that always remain.
-
----
-
-## Why this exists
-
-Migrating an Odoo module is **never a pure "run the codemod" exercise**. You always have:
-
-- Mechanical changes (API renames, deprecated attrs, manifest bumps) → automatable
-- Semantic changes (business logic that relies on behavior that changed) → needs understanding
-- Data-shape changes (field renames, models merged/split) → needs OpenUpgrade scripts
-- Regression surface (tests, demo data, views) → needs verification
-
-This recipe splits the work into **5 phases** so the IA works in small, verifiable chunks with fresh context, instead of trying to port a whole module in one shot (which fails).
+Inspirada en el flujo de [GSD (Get Shit Done)](https://github.com/gsd-build/get-shit-done), adaptada a las realidades de una migración de Odoo: `OpenUpgrade`, guías de OCA, transformaciones mecánicas, y las decisiones humanas que siempre quedan.
 
 ---
 
-## The phases
+## Por qué existe
+
+Migrar un módulo de Odoo **nunca** es un ejercicio puro de "correr el codemod". Siempre hay:
+
+- Cambios mecánicos (renombres de API, atributos deprecados, bump de manifest) → automatizable
+- Cambios semánticos (lógica de negocio que depende de comportamiento que cambió) → requiere entender
+- Cambios de forma de los datos (campos renombrados, modelos fusionados/divididos) → requiere scripts de OpenUpgrade
+- Superficie de regresión (tests, datos demo, vistas) → requiere verificación
+
+Esta receta divide el trabajo en **5 fases** para que la IA trabaje en chunks pequeños y verificables con contexto fresco, en vez de intentar portar un módulo entero de una sola vez (lo cual falla).
+
+---
+
+## Las fases
 
 ```
-┌───────────┐   ┌──────┐   ┌──────┐   ┌─────────┐   ┌────────┐
-│ 0. Intake │ → │ 1.   │ → │ 2.   │ → │ 3.      │ → │ 4.     │
-│           │   │ Res. │   │ Plan │   │ Execute │   │ Verify │
-└───────────┘   └──────┘   └──────┘   └─────────┘   └────────┘
+┌───────────┐   ┌──────┐   ┌──────┐   ┌──────────┐   ┌────────────┐
+│ 0. Intake │ → │ 1.   │ → │ 2.   │ → │ 3.       │ → │ 4.         │
+│           │   │ Inv. │   │ Plan │   │ Ejecutar │   │ Verificar  │
+└───────────┘   └──────┘   └──────┘   └──────────┘   └────────────┘
 ```
 
-| Phase | Goal | Output | Who leads |
-|-------|------|--------|-----------|
-| 0. Intake | Capture the migration request, scope, constraints | `MIGRATION.md` seed | Human |
-| 1. Research | Understand target version changes + current module state | `research.md` | AI |
-| 2. Plan | Break work into atomic tasks with acceptance criteria | `plan.md` | AI + Human review |
-| 3. Execute | Apply changes task by task, each in fresh context | Commits per task | AI |
-| 4. Verify | Run tests, manual QA, upgrade on real DB copy | `verification.md` | AI + Human |
+| Fase | Objetivo | Output | Quién lidera |
+|------|----------|--------|--------------|
+| 0. Intake | Capturar la solicitud de migración, alcance, restricciones | semilla de `MIGRATION.md` | Humano |
+| 1. Investigación | Entender cambios de la versión target + estado actual del módulo | `research.md` | IA |
+| 2. Plan | Dividir el trabajo en tareas atómicas con criterios de aceptación | `plan.md` | IA + revisión humana |
+| 3. Ejecutar | Aplicar cambios tarea por tarea, cada una en contexto fresco | Commits por tarea | IA |
+| 4. Verificar | Correr tests, QA manual, upgrade sobre copia de DB real | `verification.md` | IA + Humano |
 
 ---
 
-## How to use it
+## Cómo usarla
 
-1. **Copy** the `template/` folder into your module repo (or into a sibling folder).
-2. **Fill in** `template/MIGRATION.md` with the 3 things only you know: source version, target version, module path.
-3. **Open** the module in Claude Code / Codex and paste the **Phase 1 prompt** from `prompts/01-research.md`.
-4. **Review** the AI's `research.md` output — this is your first gate.
-5. **Paste Phase 2 prompt** → review `plan.md` → **this is your main gate**, do not skip.
-6. For each task in `plan.md`, paste the **Phase 3 prompt** in a fresh chat window (important: fresh context per task).
-7. When all tasks are done, paste **Phase 4 prompt** to run the verification suite.
+1. **Copiá** la carpeta `template/` dentro del repo de tu módulo (o en una carpeta hermana).
+2. **Completá** `template/MIGRATION.md` con las 3 cosas que solo vos sabés: versión origen, versión destino, path del módulo.
+3. **Abrí** el módulo en Claude Code / Codex y pegá el **prompt de Fase 1** de `prompts/01-research.md`.
+4. **Revisá** el `research.md` que generó la IA — este es tu primer gate.
+5. **Pegá el prompt de Fase 2** → revisá `plan.md` → **este es el gate principal, no lo saltes**.
+6. Para cada tarea del `plan.md`, pegá el **prompt de Fase 3** en una ventana de chat fresca (importante: contexto fresco por tarea).
+7. Cuando todas las tareas estén hechas, pegá el **prompt de Fase 4** para correr la suite de verificación.
 
-See [`docs/workflow.md`](docs/workflow.md) for the full flow with diagrams.
+Ver [`docs/workflow.md`](docs/workflow.md) para el flujo completo con diagramas.
 
 ---
 
-## What's in the box
+## Qué hay en la caja
 
 ```
 odoo-migration-recipe/
-├── README.md                       ← you are here
-├── template/                       ← copy this into your project
-│   ├── MIGRATION.md                ← the single source of truth for this migration
-│   ├── research.md                 ← filled by Phase 1
-│   ├── plan.md                     ← filled by Phase 2
-│   └── verification.md             ← filled by Phase 4
-├── prompts/                        ← paste these into Claude/Codex
+├── README.md                       ← estás acá
+├── template/                       ← copiá esto a tu proyecto
+│   ├── MIGRATION.md                ← fuente única de verdad de esta migración
+│   ├── research.md                 ← completa la Fase 1
+│   ├── plan.md                     ← completa la Fase 2
+│   └── verification.md             ← completa la Fase 4
+├── prompts/                        ← pegá esto en Claude/Codex
 │   ├── 00-intake.md
 │   ├── 01-research.md
 │   ├── 02-plan.md
 │   ├── 03-execute-task.md
 │   └── 04-verify.md
 ├── checklists/
-│   ├── odoo-version-deltas.md      ← known breaking changes per version
-│   ├── mechanical-transforms.md    ← what to automate vs do by hand
-│   └── gates.md                    ← the "don't proceed until" checklist
+│   ├── odoo-version-deltas.md      ← breaking changes conocidos por versión
+│   ├── mechanical-transforms.md    ← qué automatizar vs hacer a mano
+│   └── gates.md                    ← checklist de "no avanzar hasta que..."
 ├── scripts/
-│   ├── bootstrap.sh                ← initialize a new migration
-│   ├── run-module-migrator.sh      ← wraps OCA odoo-module-migrator
-│   └── upgrade-test-db.sh          ← spin up a test DB and upgrade
+│   ├── bootstrap.sh                ← inicializa una nueva migración
+│   ├── run-module-migrator.sh      ← wrapper de OCA odoo-module-migrator
+│   └── upgrade-test-db.sh          ← levanta DB de test y hace el upgrade
 └── docs/
     ├── workflow.md
     ├── tools.md                    ← OpenUpgrade, oca-port, module-migrator
@@ -84,23 +84,23 @@ odoo-migration-recipe/
 
 ---
 
-## Rules of the recipe
+## Reglas de la receta
 
-These are non-negotiable — they're the lessons from every Odoo migration gone wrong:
+Estas reglas no son negociables — son las lecciones de cada migración de Odoo que salió mal:
 
-1. **Never skip Phase 2 (Plan)**. "Just start porting" is the #1 cause of week-long migrations that should have taken a day.
-2. **One task = one commit = one fresh AI context.** Do not let the AI batch tasks.
-3. **Tests first, then code.** If the original module has no tests on the risky path, Phase 2 must add them before Phase 3 touches the code.
-4. **Real DB upgrade is the only real test.** `-u module` on a copy of production data is the gate for "done".
-5. **Mechanical transforms are not a migration.** `odoo-module-migrator` is step zero, not step done.
-6. **Read OpenUpgrade first.** If OCA already ported the models your module touches, use their `pre/post-migration.py` as reference.
+1. **Nunca saltes la Fase 2 (Plan).** "Dale, arranquemos a portear" es la causa #1 de migraciones de una semana que podrían haber llevado un día.
+2. **Una tarea = un commit = un contexto fresco de IA.** No dejes que la IA batchee tareas.
+3. **Tests primero, después código.** Si el módulo original no tiene tests sobre el camino de riesgo, la Fase 2 tiene que agregarlos antes de que la Fase 3 toque el código.
+4. **El upgrade sobre DB real es el único test real.** `-u módulo` sobre una copia de datos de producción es el gate de "listo".
+5. **Las transformaciones mecánicas no son la migración.** `odoo-module-migrator` es el paso cero, no el paso final.
+6. **Leé OpenUpgrade primero.** Si OCA ya porteó los modelos que tu módulo toca, usá sus `pre/post-migration.py` como referencia.
 
 ---
 
-## Credits & references
+## Créditos y referencias
 
-- [OCA OpenUpgrade](https://github.com/OCA/OpenUpgrade) — the reference for DB-level migration
-- [OCA Migration Guidelines](https://github.com/OCA/maintainer-tools/wiki) — the community checklist
-- [OCA odoo-module-migrator](https://github.com/OCA/odoo-module-migrator) — mechanical transforms
-- [OCA oca-port](https://github.com/OCA/oca-port) — port commits between versions
-- [GSD: Get Shit Done](https://github.com/gsd-build/get-shit-done) — the meta-prompting approach this is modeled on
+- [OCA OpenUpgrade](https://github.com/OCA/OpenUpgrade) — la referencia para migración a nivel de DB
+- [OCA Migration Guidelines](https://github.com/OCA/maintainer-tools/wiki) — el checklist de la comunidad
+- [OCA odoo-module-migrator](https://github.com/OCA/odoo-module-migrator) — transformaciones mecánicas
+- [OCA oca-port](https://github.com/OCA/oca-port) — portear commits entre versiones
+- [GSD: Get Shit Done](https://github.com/gsd-build/get-shit-done) — el enfoque de meta-prompting en el que está modelada esta receta
