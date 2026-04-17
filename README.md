@@ -9,7 +9,8 @@ Instalable como **plugin de Claude Code**, o usando cada componente por separado
 | Herramienta | Estado | Descripción |
 |---|---|---|
 | **Skill `audit-odoo`** (`skills/audit-odoo/`) | 🆕 Beta | Auditor de módulos Odoo antes de instalarlos: estructura, manifest, código Python/ORM, seguridad, vistas XML. Ver [`skills/audit-odoo/SKILL.md`](skills/audit-odoo/SKILL.md). |
-| **Skill `migrate-odoo`** (`skills/migrate-odoo/`) | 🆕 Beta | Orquestador del flujo fasado de migración — detecta en qué fase estás y aplica el prompt correcto. Wrapper sobre la receta de `prompts/`. Ver [`skills/migrate-odoo/SKILL.md`](skills/migrate-odoo/SKILL.md). |
+| **Skill `migrate-odoo`** (`skills/migrate-odoo/`) | 🆕 Beta | Orquestador del flujo fasado para **un módulo**. Detecta en qué fase estás y aplica el prompt correcto. Wrapper sobre la receta de `prompts/`. Ver [`skills/migrate-odoo/SKILL.md`](skills/migrate-odoo/SKILL.md). |
+| **Skill `migrate-odoo-project`** (`skills/migrate-odoo-project/`) | 🆕 Beta | Orquestador a nivel **proyecto multi-módulo**. Escanea, arma grafo de dependencias, propone orden topológico en oleadas paralelizables, y delega cada módulo al skill `migrate-odoo`. Ver [`skills/migrate-odoo-project/SKILL.md`](skills/migrate-odoo-project/SKILL.md). |
 | **Receta de migración** (`prompts/`, `template/`, `checklists/`) | ✅ Estable | Flujo manual por fases para migrar módulos entre versiones. Usable sin el skill, pegando prompts. Ver sección [Receta de migración](#receta-de-migración-de-módulos-odoo). |
 
 ## Instalación como plugin de Claude Code
@@ -25,7 +26,8 @@ O cloná el repo y apuntá tu `settings.json` al path local.
 ## Uso de cada skill
 
 - **Auditor**: `/audit-odoo <ruta_al_modulo>` — produce un informe Markdown con severidades (crítico/alto/medio/bajo), adaptado a la versión de Odoo declarada en `__manifest__.py`.
-- **Migrador**: `/migrate-odoo <ruta_modulo_o_migracion>` — detecta la fase del trabajo de migración y aplica el prompt correspondiente. Respeta la regla de un chat fresco por tarea en Fase 3.
+- **Migrador (un módulo)**: `/migrate-odoo <ruta_modulo_o_migracion>` — detecta la fase del trabajo de migración y aplica el prompt correspondiente. Respeta la regla de un chat fresco por tarea en Fase 3.
+- **Migrador de proyecto (varios módulos)**: `/migrate-odoo-project <ruta_carpeta>` — para cuando tenés múltiples módulos con dependencias entre sí. Planifica oleadas, genera grafo y delega cada módulo al skill `migrate-odoo`.
 
 ---
 
