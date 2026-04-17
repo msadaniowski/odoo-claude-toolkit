@@ -23,11 +23,201 @@ Desde Claude Code:
 
 O cloná el repo y apuntá tu `settings.json` al path local.
 
-## Uso de cada skill
+## Comandos rápidos
 
-- **Auditor**: `/audit-odoo <ruta_al_modulo>` — produce un informe Markdown con severidades (crítico/alto/medio/bajo), adaptado a la versión de Odoo declarada en `__manifest__.py`.
-- **Migrador (un módulo)**: `/migrate-odoo <ruta_modulo_o_migracion>` — detecta la fase del trabajo de migración y aplica el prompt correspondiente. Respeta la regla de un chat fresco por tarea en Fase 3.
-- **Migrador de proyecto (varios módulos)**: `/migrate-odoo-project <ruta_carpeta>` — para cuando tenés múltiples módulos con dependencias entre sí. Planifica oleadas, genera grafo y delega cada módulo al skill `migrate-odoo`.
+| Comando | Qué hace | Cuándo usarlo |
+|---|---|---|
+| `/audit-odoo <ruta_modulo>` | Auditoría estática del módulo (estructura, ORM, seguridad, XML). Produce informe Markdown con severidades. | Antes de instalar/mergear un módulo, o antes de empezar a migrarlo. |
+| `/migrate-odoo <ruta_modulo>` | Migra UN módulo siguiendo el flujo fasado (intake → research → plan → execute → verify). | Módulo aislado, o invocado por el orquestador por cada módulo de una oleada. |
+| `/migrate-odoo-project <ruta_carpeta>` | Orquesta migración de muchos módulos: grafo de dependencias, oleadas paralelizables, decisiones globales. | Tenés 2+ módulos con dependencias cruzadas que hay que migrar juntos. |
+
+---
+
+## Guía de uso paso a paso
+
+Playbook completo para un proyecto multi-módulo. Si tenés UN módulo aislado, saltá al paso 4 invocando `/migrate-odoo` directo.
+
+### 0. Preparar workspace (5 minutos)
+
+```bash
+# 1. Verificá que no tenés cambios sin commitear
+cd /ruta/a/tu_proyecto_odoo
+git status
+
+# 2. Tag de seguridad antes de tocar nada
+git tag pre-migration-$(date +%Y%m%d)
+
+# 3. Branch para el trabajo de migración
+git checkout -b migration/odoo-XX-to-YY
+
+# 4. Backup reciente de la DB de producción (o una copia)
+pg_dump -Fc mi_db_prod > ~/backups/prod-$(date +%Y%m%d).dump
+```
+
+**Regla**: nunca migrás sobre la única copia que tenés. Siempre contra una copia.
+
+### 1. Auditoría previa — limpiar deuda técnica en la versión origen
+
+Por cada módulo crítico (o todos si tenés tiempo), abrí Claude Code en la raíz del proyecto y corré:
+
+```
+/audit-odoo /ruta/a/tu_proyecto/addons/mi_modulo
+```
+
+Vas a obtener un informe con hallazgos clasificados por severidad:
+
+- 🔴 **Crítico**: rompe instalación, vulnerabilidades (SQL injection, XSS), permisos abiertos.
+- 🟠 **Alto**: bug funcional probable, N+1 severo, incompatibilidad con la versión declarada.
+- 🟡 **Medio**: mala práctica moderada (`sudo()` sin justificar, etc.).
+- 🔵 **Bajo** / ℹ️ **Info**: estilo, convenciones, sugerencias.
+
+**Regla**: resolvé 🔴 y 🟠 **en la versión origen**, antes de migrar. Es 10x más barato que arreglarlos durante la migración.
+
+Commits con formato: `audit(<modulo>): fix <descripción>`.
+
+> **Tip**: podés auditar múltiples módulos en paralelo abriendo varios chats/ventanas de Claude Code, uno por módulo.
+
+### 2. Orquestación del proyecto
+
+En un chat **nuevo** de Claude Code:
+
+```
+/migrate-odoo-project /ruta/a/tu_proyecto/addons
+```
+
+El skill te va a pedir:
+
+- Versión origen (ej: `15.0`)
+- Versión destino (ej: `18.0`)
+- Ruta de una DB de prueba (copia de prod)
+- Restricciones de alcance (ej: "ignorá los módulos `*_old`")
+
+**Output**: una carpeta `migration/` con:
+
+```
+migration/
+├── PROJECT_MIGRATION.md       ← tablero maestro del proyecto
+├── project_research.md        ← patrones cross-módulo y decisiones globales
+├── dependency-graph.md        ← grafo ASCII + orden topológico
+└── modules/
+    ├── modulo_a/MIGRATION.md  ← uno por módulo, ya inicializado
+    ├── modulo_b/MIGRATION.md
+    └── ...
+```
+
+Los módulos quedan agrupados en **oleadas**:
+- Oleada 1: módulos sin dependencias con otros módulos tuyos — se pueden migrar en **paralelo**.
+- Oleada 2: dependen solo de la Oleada 1.
+- Oleada N: dependen de oleadas anteriores.
+
+### 3. Gate humano — revisar el plan ⚠️
+
+**No lo saltees.** Abrí `PROJECT_MIGRATION.md` y revisá:
+
+- ¿El orden de oleadas tiene sentido con lo que sabés del negocio?
+- ¿Las **decisiones globales** propuestas te convencen? (ej: "todos los `<tree>` → `<list>`, todos los `@api.multi` se eliminan").
+- ¿Algún módulo marcado como "dependencia externa" que en realidad es tuyo?
+- ¿Ciclos reportados? (Odoo no permite ciclos de carga — hay que romperlos antes de seguir).
+
+Si algo no cierra, pegás tus comentarios en el chat del orquestador y le pedís que ajuste `PROJECT_MIGRATION.md`. **No avanzar hasta que el plan te convenza.**
+
+### 4. Migración por oleadas (ciclo principal)
+
+Por cada módulo de la **Oleada actual**, abrí un chat **fresco** de Claude Code:
+
+```
+/migrate-odoo /ruta/a/tu_proyecto/migration/modules/mi_modulo
+```
+
+El skill detecta la fase en la que está el trabajo y avanza:
+
+| Fase | Qué hace | Gate |
+|---|---|---|
+| 0. Intake | Completa `MIGRATION.md` §0 con info básica. | — |
+| 1. Research | Investiga el módulo + delta entre versiones. Produce `research.md`. | Revisar `research.md`. |
+| 2. Plan | Divide el trabajo en tareas atómicas. Produce `plan.md`. | **Gate principal — revisar `plan.md` antes de avanzar.** |
+| 3. Execute | Implementa **UNA tarea** de `plan.md`. | Después de cada tarea, **chat nuevo**. |
+| 4. Verify | Corre tests, genera `verification.md`. | Revisar gates manuales. |
+
+**Reglas duras de Fase 3:**
+
+- **Una tarea = un commit = un chat fresco.** Cuando el skill termina una tarea, te dice "abrí un chat nuevo para la próxima". **Hacelo.**
+- No batches tareas en el mismo chat — la IA pierde contexto y empieza a tomar atajos.
+- Si una tarea no pasa verificación, el skill para y te avisa. No forzar — diagnosticar.
+
+**Paralelización dentro de una oleada**: abrí 2-3 chats simultáneos, cada uno con un módulo distinto de la misma oleada. No más — el cuello de botella real es tu capacidad de revisar planes.
+
+### 5. Fin de oleada — volver al orquestador
+
+Cuando todos los módulos de una oleada tienen ✅ en `PROJECT_MIGRATION.md`, volvé al chat del orquestador (o invocá de nuevo):
+
+```
+/migrate-odoo-project /ruta/a/tu_proyecto/addons
+```
+
+Detecta el progreso y habilita la próxima oleada. Repetí hasta completar todas.
+
+Entre oleadas es buen momento para correr tests de integración cruzada si existen.
+
+### 6. Verify final (el gate real de "listo")
+
+Con todas las oleadas verdes:
+
+```bash
+# Restaurar copia de DB de prod en un entorno de test
+pg_restore -d test_db ~/backups/prod-XXXX.dump
+
+# Upgrade de TODOS los módulos
+odoo -d test_db -u all --stop-after-init --addons-path=/ruta/a/tu_proyecto/addons,...
+```
+
+**Gates finales:**
+
+- [ ] `-u all` corre sin errores sobre copia de DB de producción.
+- [ ] Smoke tests manuales de los flujos críticos del negocio pasan.
+- [ ] Tests automatizados verdes.
+- [ ] Plan de rollback documentado en `verification.md`.
+
+Recién cuando todo esto esté verde, merge a `main` y deploy.
+
+---
+
+## Checklist resumen
+
+- [ ] Backup git + DB de producción
+- [ ] Branch `migration/...`
+- [ ] `/audit-odoo` en cada módulo, fix 🔴 y 🟠 en versión origen
+- [ ] `/migrate-odoo-project` genera plan de oleadas
+- [ ] **Revisión humana del `PROJECT_MIGRATION.md`** (gate crítico)
+- [ ] Oleada 1 — `/migrate-odoo` por cada módulo en chats frescos
+- [ ] Oleada 2, 3, ... — repetir
+- [ ] `-u all` sobre copia de DB de producción
+- [ ] Smoke tests manuales de flujos críticos
+- [ ] Merge a `main` / deploy
+
+---
+
+## Errores comunes que conviene evitar
+
+1. **Saltarse el audit**: "dale, es un módulo simple" → en Fase 3 aparece un `sudo()` mal puesto que rompe algo. El audit previo paga con creces.
+2. **Reusar el mismo chat para varias tareas de Fase 3**: la IA pierde contexto y hace atajos silenciosos. **Chat fresco por tarea, siempre.**
+3. **Testear solo con demo data**: la mayoría de los bugs aparecen con volúmenes y datos reales. Usar copia de prod es obligatorio.
+4. **Migrar cuando estás cansado**: los gates humanos (revisar `research.md`, `plan.md`, `verification.md`) son el único filtro real. Si no vas a revisar bien, pausá.
+5. **Ignorar decisiones globales**: si en `PROJECT_MIGRATION.md` decidiste "todos los `<tree>` → `<list>`", todos los módulos siguen eso. No renegociar en cada módulo — ahí perdés coherencia.
+6. **Paralelizar demasiado**: tener 5 chats abiertos suena productivo hasta que tenés 5 planes para revisar al mismo tiempo y no revisás ninguno bien. Máximo 2-3 en paralelo.
+
+---
+
+## Recomendación antes de tirarte al proyecto completo
+
+Antes de orquestar 20+ módulos, **probá el flujo con UNO chico** para calibrar:
+
+1. Elegí un módulo de la Oleada 1 (sin dependencias custom).
+2. Corré `/audit-odoo` → fixear lo crítico.
+3. Corré `/migrate-odoo` → hacé el flujo entero.
+4. Anotá dónde se trabó o qué check faltó.
+
+Una vez que viste el flujo en vivo, sabés si el toolkit necesita ajustes antes de escalar.
 
 ---
 
