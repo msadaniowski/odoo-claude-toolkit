@@ -1,3 +1,32 @@
+# Odoo Claude Toolkit
+
+Colección de herramientas para Claude Code orientadas al trabajo diario con Odoo.
+
+Instalable como **plugin de Claude Code**, o usando cada componente por separado.
+
+## Herramientas incluidas
+
+| Herramienta | Estado | Descripción |
+|---|---|---|
+| **Receta de migración** (`prompts/`, `template/`, `checklists/`) | ✅ Estable | Flujo por fases para migrar módulos entre versiones de Odoo. Ver sección [Receta de migración](#receta-de-migración-de-módulos-odoo). |
+| **Skill `audit-odoo`** (`skills/audit-odoo/`) | 🆕 Beta | Auditor de módulos Odoo antes de instalarlos: estructura, manifest, código Python/ORM, seguridad, vistas XML. Ver [`skills/audit-odoo/SKILL.md`](skills/audit-odoo/SKILL.md). |
+
+## Instalación como plugin de Claude Code
+
+Desde Claude Code:
+
+```
+/plugin install msadaniowski/odoo-migration-recipe
+```
+
+O cloná el repo y apuntá tu `settings.json` al path local.
+
+## Uso de cada skill
+
+- **Auditor**: `/audit-odoo <ruta_al_modulo>` — produce un informe Markdown con severidades (crítico/alto/medio/bajo), adaptado a la versión de Odoo declarada en `__manifest__.py`.
+
+---
+
 # Receta de Migración de Módulos Odoo
 
 Una **receta guiada por especificación, dividida en fases** para migrar módulos de Odoo entre versiones, diseñada para trabajar con asistentes de IA (Claude Code, Codex, Cursor, etc.).

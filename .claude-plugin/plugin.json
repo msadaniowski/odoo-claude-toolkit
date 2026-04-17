@@ -1,0 +1,7 @@
+{
+  "name": "odoo-claude-toolkit",
+  "version": "0.1.0",
+  "description": "Herramientas para Claude Code orientadas a trabajo con Odoo: auditoría de módulos, receta de migración entre versiones, y más.",
+  "author": "msadaniowski",
+  "license": "MIT"
+}
