@@ -10,6 +10,8 @@ Instalable como **plugin de Claude Code**, o usando cada componente por separado
 |---|---|---|
 | **Skill `audit-odoo`** (`skills/audit-odoo/`) | 🆕 Beta | Auditor de módulos Odoo antes de instalarlos: estructura, manifest, código Python/ORM, seguridad, vistas XML. Genera `.audit/AUDIT_REPORT.md`. Ver [`skills/audit-odoo/SKILL.md`](skills/audit-odoo/SKILL.md). |
 | **Skill `audit-odoo-fix`** (`skills/audit-odoo-fix/`) | 🆕 Beta | A partir de un `AUDIT_REPORT.md`, genera `FIX_PLAN.md` con oleadas priorizadas y ejecuta los fixes uno a uno (un fix = un commit = chat fresco). Ver [`skills/audit-odoo-fix/SKILL.md`](skills/audit-odoo-fix/SKILL.md). |
+| **Skill `enhance-odoo`** (`skills/enhance-odoo/`) | 🆕 Beta | Analiza un módulo Odoo y propone mejoras/nuevas features **validadas end-to-end** (negocio, técnico, UX, seguridad). Cada propuesta incluye trace de flujo, prerequisitos verificados, chequeo de colisiones con lógica existente y test automatizado. Descarta propuestas cuyo flujo no cierre. Genera `.enhance/ENHANCEMENT_REPORT.md`. Ver [`skills/enhance-odoo/SKILL.md`](skills/enhance-odoo/SKILL.md). |
+| **Skill `enhance-odoo-fix`** (`skills/enhance-odoo-fix/`) | 🆕 Beta | A partir de `ENHANCEMENT_REPORT.md`, genera `ENHANCEMENT_PLAN.md` con 7 oleadas y ejecuta las mejoras una a una (una mejora = un commit = chat fresco). Oleadas de features requieren **test pasando** antes de marcar ✅. Ver [`skills/enhance-odoo-fix/SKILL.md`](skills/enhance-odoo-fix/SKILL.md). |
 | **Skill `migrate-odoo`** (`skills/migrate-odoo/`) | 🆕 Beta | Orquestador del flujo fasado para **un módulo**. Detecta en qué fase estás y aplica el prompt correcto. Wrapper sobre la receta de `prompts/`. Ver [`skills/migrate-odoo/SKILL.md`](skills/migrate-odoo/SKILL.md). |
 | **Skill `migrate-odoo-project`** (`skills/migrate-odoo-project/`) | 🆕 Beta | Orquestador a nivel **proyecto multi-módulo**. Escanea, arma grafo de dependencias, propone orden topológico en oleadas paralelizables, y delega cada módulo al skill `migrate-odoo`. Ver [`skills/migrate-odoo-project/SKILL.md`](skills/migrate-odoo-project/SKILL.md). |
 | **Receta de migración** (`prompts/`, `template/`, `checklists/`) | ✅ Estable | Flujo manual por fases para migrar módulos entre versiones. Usable sin el skill, pegando prompts. Ver sección [Receta de migración](#receta-de-migración-de-módulos-odoo). |
@@ -30,6 +32,8 @@ O cloná el repo y apuntá tu `settings.json` al path local.
 |---|---|---|
 | `/audit-odoo <ruta_modulo>` | Auditoría estática del módulo (estructura, ORM, seguridad, XML). Produce informe Markdown con severidades en `.audit/AUDIT_REPORT.md`. | Antes de instalar/mergear un módulo, o antes de empezar a migrarlo. |
 | `/audit-odoo-fix <ruta_modulo>` | Lee el informe, genera `FIX_PLAN.md` con oleadas priorizadas, y ejecuta los fixes uno a uno (chat fresco por tarea). | Después de `/audit-odoo`, para aplicar las correcciones en forma disciplinada. |
+| `/enhance-odoo <ruta_modulo>` | Análisis propositivo: propone mejoras/nuevas features validadas end-to-end (descarta las que no cierran flujo, incluye test por cada una). Produce `.enhance/ENHANCEMENT_REPORT.md`. | Cuando el módulo está saneado y querés saber qué se le podría agregar sin romper nada. Recomendado después de `/audit-odoo-fix`. |
+| `/enhance-odoo-fix <ruta_modulo>` | Lee el informe, genera plan en 7 oleadas, ejecuta mejoras una a una. Tests obligatorios en oleadas de features de negocio y UX. | Después de `/enhance-odoo`, para implementar las propuestas en forma disciplinada. |
 | `/migrate-odoo <ruta_modulo>` | Migra UN módulo siguiendo el flujo fasado (intake → research → plan → execute → verify). | Módulo aislado, o invocado por el orquestador por cada módulo de una oleada. |
 | `/migrate-odoo-project <ruta_carpeta>` | Orquesta migración de muchos módulos: grafo de dependencias, oleadas paralelizables, decisiones globales. | Tenés 2+ módulos con dependencias cruzadas que hay que migrar juntos. |
 
@@ -78,6 +82,35 @@ Vas a obtener un informe con hallazgos clasificados por severidad:
 Commits con formato: `audit(<modulo>): fix <descripción>`.
 
 > **Tip**: podés auditar múltiples módulos en paralelo abriendo varios chats/ventanas de Claude Code, uno por módulo.
+
+### 1.5. (Opcional) Mejoras antes de migrar
+
+**Cuándo aplica**: si además de migrar querés aprovechar para sumar features nuevas o hacer refactors de oportunidad, y el módulo ya pasó por audit-fix.
+
+**Cuándo NO aplica**: si el objetivo es solamente migrar versión, saltá este paso. Migrar + agregar features al mismo tiempo es una receta para confundirte sobre qué rompió qué.
+
+```
+/enhance-odoo /ruta/a/tu_proyecto/addons/mi_modulo
+```
+
+Produce `.enhance/ENHANCEMENT_REPORT.md` con propuestas validadas end-to-end (negocio, técnico, UX, seguridad). Cada propuesta trae:
+
+- **Trace de flujo completo**: trigger → acceso → datos de soporte → procesamiento → salida → reversibilidad.
+- **Chequeo de colisiones** con la lógica existente del módulo.
+- **Test automatizado diseñado** (TransactionCase o HttpCase).
+- **Prerequisitos explícitos**: qué hay que crear, qué ya está.
+
+La skill **descarta** propuestas cuyo flujo no se pueda completar en el módulo actual (ej: un quiz por portal en un módulo sin portal configurado). Las descartadas aparecen en sección aparte del informe con razón explícita — son información útil, no basura.
+
+Después del análisis, corré:
+
+```
+/enhance-odoo-fix /ruta/a/tu_proyecto/addons/mi_modulo
+```
+
+Genera `ENHANCEMENT_PLAN.md` con 7 oleadas (preparación → groundwork → técnico → seguridad → features de negocio → UX → docs/tests). Las oleadas de features tienen gate obligatorio: **el test diseñado tiene que pasar antes de marcar la tarea ✅**.
+
+**Regla**: completar TODAS las oleadas de enhance-fix antes de arrancar la migración. Features nuevas a medio hacer + cambio de versión Odoo = pesadilla de debugging.
 
 ### 2. Orquestación del proyecto
 
@@ -189,6 +222,7 @@ Recién cuando todo esto esté verde, merge a `main` y deploy.
 - [ ] Backup git + DB de producción
 - [ ] Branch `migration/...`
 - [ ] `/audit-odoo` en cada módulo, fix 🔴 y 🟠 en versión origen
+- [ ] (Opcional) `/enhance-odoo` + `/enhance-odoo-fix` si además vas a sumar features — completar antes de migrar
 - [ ] `/migrate-odoo-project` genera plan de oleadas
 - [ ] **Revisión humana del `PROJECT_MIGRATION.md`** (gate crítico)
 - [ ] Oleada 1 — `/migrate-odoo` por cada módulo en chats frescos
